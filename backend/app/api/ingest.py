@@ -22,17 +22,32 @@ async def extract_text(file: UploadFile) -> str:
     return content.decode("utf-8", errors="ignore")
 
 
-async def extract_text_with_schema(file: UploadFile, address: str = "") -> tuple[str, bool]:
-    """Returns (text, is_erp_csv)"""
+async def extract_text_with_schema(
+    file: UploadFile, address: str = "", source_type: str = ""
+) -> tuple[str, bool]:
+    """Returns (text, is_erp_csv). source_type takes priority over file extension."""
     content = await file.read()
-    if file.filename.endswith(".csv"):
+
+    if source_type == "erp":
         from app.core.erp_parser import parse_erp_csv
         text = content.decode("utf-8", errors="ignore")
         parsed = parse_erp_csv(text, target_address=address)
-        if parsed:
-            return parsed, True
-        return text, False
-    if file.filename.endswith(".pdf"):
+        return (parsed, True) if parsed else (text, False)
+
+    if source_type == "pdf":
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        return "\n".join(page.extract_text() or "" for page in reader.pages), False
+
+    if source_type in ("email", "slack", "other"):
+        return content.decode("utf-8", errors="ignore"), False
+
+    # Fallback: infer from file extension when source_type is unset
+    if file.filename and file.filename.endswith(".csv"):
+        from app.core.erp_parser import parse_erp_csv
+        text = content.decode("utf-8", errors="ignore")
+        parsed = parse_erp_csv(text, target_address=address)
+        return (parsed, True) if parsed else (text, False)
+    if file.filename and file.filename.endswith(".pdf"):
         reader = pypdf.PdfReader(io.BytesIO(content))
         return "\n".join(page.extract_text() or "" for page in reader.pages), False
     return content.decode("utf-8", errors="ignore"), False
@@ -61,7 +76,7 @@ async def ingest_source(
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
 
-    text, is_erp = await extract_text_with_schema(file, address=prop.address)
+    text, is_erp = await extract_text_with_schema(file, address=prop.address, source_type=source_type)
     if is_erp:
         # ERP CSV: skip signal check, directly patch from structured data
         signal = {"relevant": True, "section": None}
@@ -98,7 +113,7 @@ async def ingest_source(
         # Tavily enrichment
         from app.core.enricher import enrich_property
         enrichment = await enrich_property(prop.address, prop.name)
-        if enrichment.strip():
+        if False:  # Tavily disabled for demo
             new_md = patch_section(new_md, "Notes", enrichment[:500])
     else:
         section = signal.get("section") or "Open Issues"
