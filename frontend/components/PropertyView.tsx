@@ -46,6 +46,16 @@ export default function PropertyView({ property, onUpdate }: Props) {
     if (file) ingest(file);
   };
 
+  const renderBold = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    if (parts.length === 1) return text;
+    return parts.map((part, j) =>
+      part.startsWith("**") && part.endsWith("**")
+        ? <strong key={j}>{part.slice(2, -2)}</strong>
+        : part
+    );
+  };
+
   const renderMarkdown = (md: string) => {
     const lines = md.split("\n");
     return lines.map((line, i) => {
@@ -60,7 +70,7 @@ export default function PropertyView({ property, onUpdate }: Props) {
 
       if (isH1) return (
         <div key={i} className="heading" style={{ fontSize: 20, fontWeight: 800, color: "var(--amber)", marginTop: 8, marginBottom: 4 }}>
-          {line.replace("# ", "")}
+          {renderBold(line.replace("# ", ""))}
         </div>
       );
       if (isH2) return (
@@ -75,13 +85,13 @@ export default function PropertyView({ property, onUpdate }: Props) {
       );
       if (isH3) return (
         <div key={i} style={{ color: "var(--amber-dim)", fontWeight: 500, marginTop: 8 }}>
-          {line.replace("### ", "")}
+          {renderBold(line.replace("### ", ""))}
         </div>
       );
       if (isBullet) return (
         <div key={i} style={{ paddingLeft: 16, color: "var(--text)", lineHeight: 1.8 }}>
           <span style={{ color: "var(--amber)" }}>→ </span>
-          {line.replace("- ", "")}
+          {renderBold(line.replace(/^- /, ""))}
         </div>
       );
       if (isSeparator) return (
@@ -90,7 +100,7 @@ export default function PropertyView({ property, onUpdate }: Props) {
       if (!line.trim()) return <div key={i} style={{ height: 4 }} />;
       return (
         <div key={i} style={{ color: "var(--text-muted)", lineHeight: 1.8 }}>
-          {line}
+          {renderBold(line)}
         </div>
       );
     });
