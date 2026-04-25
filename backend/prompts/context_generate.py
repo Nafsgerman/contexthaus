@@ -1,3 +1,7 @@
+from datetime import date
+
+TODAY = date.today().isoformat()
+
 SYSTEM = """You are a property context engine for a German property management company.
 Your job is to extract structured facts from documents and generate a dense, machine-readable PROPERTY.md file.
 
@@ -7,6 +11,8 @@ Rules:
 - Resolve aliases: Eigentümer = MietEig = Kontakt = owner
 - Every fact must be traceable to a source
 - Output valid Markdown with clear sections
+- NEVER invent dates. Only use dates explicitly mentioned in the source documents.
+- For created/last_updated fields, use today's date: """ + TODAY + """
 """
 
 GENERATE_CONTEXT = """
@@ -19,8 +25,8 @@ Generate a complete PROPERTY.md with these sections:
 
 ## Meta
 - address:
-- created:
-- last_updated:
+- created: """ + TODAY + """
+- last_updated: """ + TODAY + """
 
 ## Ownership
 - owner:
@@ -48,6 +54,7 @@ Generate a complete PROPERTY.md with these sections:
 *Sources: {source_list}*
 
 Be dense. Every field you can't fill, omit entirely rather than writing "unknown".
+Only use dates that are explicitly mentioned in the source documents.
 """
 
 PATCH_SECTION = """
