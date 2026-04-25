@@ -7,29 +7,33 @@ load_dotenv()
 _client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 
-_AD_KEYWORDS = {"anrufen", "inserieren", "makler", "kaufen", "mieten"}
+_SPAM_KEYWORDS = {"inserieren", "makler", "kaufen", "wohnung", "anrufen", "qm", "zimmer"}
+_RELEVANT_KEYWORDS = {"hausverwaltung", "verwaltung", "eigentümer", "weg", "gebäude", "kontakt"}
 
 
-def _is_clean(snippet: str) -> bool:
+def _is_relevant(snippet: str) -> bool:
     lower = snippet.lower()
-    return not any(kw in lower for kw in _AD_KEYWORDS)
+    if any(kw in lower for kw in _SPAM_KEYWORDS):
+        return False
+    return any(kw in lower for kw in _RELEVANT_KEYWORDS)
 
 
 async def enrich_property(address: str, property_name: str) -> str:
-    """Search public records for property/contractor info."""
+    """Search public records for property management info."""
     try:
         result = _client.search(
-            query=f"{address} Berlin Hausverwaltung Gebäudedaten",
+            query=f"Hausverwaltung Kontakt {address}",
             max_results=2,
             search_depth="basic",
         )
         snippets = [
             r.get("content", "")
             for r in result.get("results", [])
-            if _is_clean(r.get("content", ""))
+            if _is_relevant(r.get("content", ""))
         ]
-        combined = "\n".join(snippets[:2])
-        return combined[:300]
+        if not snippets:
+            return ""
+        return "\n".join(snippets[:2])[:150]
     except Exception:
         return ""
 

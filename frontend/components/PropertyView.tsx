@@ -66,7 +66,8 @@ export default function PropertyView({ property, onUpdate }: Props) {
       const isH1 = line.startsWith("# ");
       const isH2 = line.startsWith("## ");
       const isH3 = line.startsWith("### ");
-      const isBullet = line.startsWith("- ");
+      const bulletMatch = line.match(/^(\s*)- (.*)/s);
+      const isBullet = bulletMatch !== null;
       const isSeparator = line === "---";
 
       const sectionName = isH2 ? line.replace("## ", "") : null;
@@ -92,10 +93,10 @@ export default function PropertyView({ property, onUpdate }: Props) {
           {renderInline(line.replace("### ", ""))}
         </div>
       );
-      if (isBullet) return (
-        <div key={i} style={{ paddingLeft: 16, color: "var(--text)", lineHeight: 1.8 }}>
+      if (isBullet && bulletMatch) return (
+        <div key={i} style={{ paddingLeft: 16 + bulletMatch[1].length * 8, color: "var(--text)", lineHeight: 1.8 }}>
           <span style={{ color: "var(--amber)" }}>→ </span>
-          {renderInline(line.replace(/^- /, ""))}
+          {renderInline(bulletMatch[2])}
         </div>
       );
       if (isSeparator) return (
