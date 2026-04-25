@@ -23,12 +23,14 @@ async def extract_text(file: UploadFile) -> str:
 
 
 async def check_signal(text: str, property_name: str, address: str) -> dict:
-    prompt = SIGNAL_CHECK.format(property_name=f"{property_name} at {address}", content=text[:2000])
-    result = await generate_json(prompt=prompt, model=FLASH)
-    try:
-        return json.loads(result)
-    except Exception:
-        return {"relevant": True, "reason": "parse error", "section": None}
+    from app.core.classifier import classify_relevance
+    result = await classify_relevance(text)
+    return {
+        "relevant": result.get("relevant", True),
+        "reason": result.get("reason", ""),
+        "section": None,
+        "entities": result.get("entities", []),
+    }
 
 
 @router.post("/{property_id}/source")
