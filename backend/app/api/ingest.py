@@ -22,6 +22,22 @@ async def extract_text(file: UploadFile) -> str:
     return content.decode("utf-8", errors="ignore")
 
 
+async def extract_text_with_schema(file: UploadFile, address: str = "") -> tuple[str, bool]:
+    """Returns (text, is_erp_csv)"""
+    content = await file.read()
+    if file.filename.endswith(".csv"):
+        from app.core.erp_parser import parse_erp_csv
+        text = content.decode("utf-8", errors="ignore")
+        parsed = parse_erp_csv(text, target_address=address)
+        if parsed:
+            return parsed, True
+        return text, False
+    if file.filename.endswith(".pdf"):
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        return "\n".join(page.extract_text() or "" for page in reader.pages), False
+    return content.decode("utf-8", errors="ignore"), False
+
+
 async def check_signal(text: str, property_name: str, address: str) -> dict:
     from app.core.classifier import classify_relevance
     result = await classify_relevance(text)
@@ -45,7 +61,10 @@ async def ingest_source(
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
 
-    text = await extract_text(file)
+    text, is_erp = await extract_text_with_schema(file, address=prop.address)
+    if is_erp:
+        # ERP CSV: skip signal check, directly patch from structured data
+        signal = {"relevant": True, "section": None}
 
     if prop.context_md and prop.context_md.strip():
         signal = await check_signal(text, prop.name, prop.address)
