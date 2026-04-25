@@ -22,8 +22,8 @@ async def extract_text(file: UploadFile) -> str:
     return content.decode("utf-8", errors="ignore")
 
 
-async def check_signal(text: str, property_name: str) -> dict:
-    prompt = SIGNAL_CHECK.format(property_name=property_name, content=text[:2000])
+async def check_signal(text: str, property_name: str, address: str) -> dict:
+    prompt = SIGNAL_CHECK.format(property_name=f"{property_name} at {address}", content=text[:2000])
     result = await generate_json(prompt=prompt, model=FLASH)
     try:
         return json.loads(result)
@@ -38,21 +38,21 @@ async def ingest_source(
     source_type: str = Form(default="email"),
     db: AsyncSession = Depends(get_db),
 ):
-    # Get property
     result = await db.execute(select(Property).where(Property.id == property_id))
     prop = result.scalar_one_or_none()
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
 
-    # Extract text
     text = await extract_text(file)
 
-    # Signal check — is this relevant?
-    signal = await check_signal(text, prop.name)
-    if not signal.get("relevant", True):
-        return {"status": "ignored", "reason": signal.get("reason"), "changes": []}
+    # Skip signal check on first ingest — always process
+    if prop.context_md and prop.context_md.strip():
+        signal = await check_signal(text, prop.name, prop.address)
+        if not signal.get("relevant", True):
+            return {"status": "ignored", "reason": signal.get("reason"), "changes": []}
+    else:
+        signal = {"relevant": True, "section": None}
 
-    # Save source
     source = Source(
         id=str(uuid.uuid4()),
         property_id=property_id,
@@ -66,7 +66,6 @@ async def ingest_source(
     old_md = prop.context_md or ""
 
     if not old_md.strip():
-        # First ingest — generate full context
         sources_text = f"[{source_type.upper()}] {file.filename}:\n{text[:10000]}"
         prompt = GENERATE_CONTEXT.format(
             property_name=prop.name,
@@ -76,7 +75,6 @@ async def ingest_source(
         )
         new_md = await generate(prompt=prompt, system=SYSTEM, model=PRO)
     else:
-        # Subsequent ingest — surgical patch
         section = signal.get("section") or "Notes"
         current = get_section(old_md, section) or ""
         patch_prompt = PATCH_SECTION.format(
@@ -88,10 +86,7 @@ async def ingest_source(
         new_section_content = await generate(prompt=patch_prompt, system=SYSTEM, model=FLASH)
         new_md = patch_section(old_md, section, new_section_content)
 
-    # Compute diff for frontend
     changes = diff_sections(old_md, new_md)
-
-    # Save updated context
     prop.context_md = new_md
     await db.commit()
 

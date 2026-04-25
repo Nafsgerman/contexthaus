@@ -1,26 +1,53 @@
-@import "tailwindcss";
+:root { --font-mono: "DM Mono", "Fira Code", monospace; --font-heading: "Syne", "Arial Black", sans-serif; }
+:root { --font-mono: "DM Mono", "Fira Code", monospace; --font-heading: "Syne", "Arial Black", sans-serif; }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0a08;
+  --surface: #111110;
+  --border: #2a2a26;
+  --amber: #f5a623;
+  --amber-dim: #a06a10;
+  --text: #e8e6df;
+  --text-muted: #6b6860;
+  --green: #4ade80;
+  --red: #f87171;
+  --blue: #60a5fa;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+h1, h2, h3, .heading { font-family: 'Arial Black', sans-serif; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.diff-flash {
+  animation: diffFlash 1.5s ease-out forwards;
+}
+
+@keyframes diffFlash {
+  0%   { background: rgba(245, 166, 35, 0.25); border-left: 2px solid var(--amber); }
+  100% { background: transparent; border-left: 2px solid transparent; }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
