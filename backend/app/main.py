@@ -24,7 +24,10 @@ app.add_middleware(
 )
 
 from app.api.properties import router as properties_router
+from app.api.ingest import router as ingest_router
+
 app.include_router(properties_router, prefix="/api/properties", tags=["properties"])
+app.include_router(ingest_router, prefix="/api/ingest", tags=["ingest"])
 
 
 @app.get("/health")
