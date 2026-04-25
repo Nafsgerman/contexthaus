@@ -45,7 +45,6 @@ async def ingest_source(
 
     text = await extract_text(file)
 
-    # Skip signal check on first ingest — always process
     if prop.context_md and prop.context_md.strip():
         signal = await check_signal(text, prop.name, prop.address)
         if not signal.get("relevant", True):
@@ -74,8 +73,14 @@ async def ingest_source(
             source_list=file.filename,
         )
         new_md = await generate(prompt=prompt, system=SYSTEM, model=PRO)
+
+        # Tavily enrichment
+        from app.core.enricher import enrich_property
+        enrichment = await enrich_property(prop.address, prop.name)
+        if enrichment.strip():
+            new_md = patch_section(new_md, "Notes", enrichment[:500])
     else:
-        section = signal.get("section") or "Notes"
+        section = signal.get("section") or "Open Issues"
         current = get_section(old_md, section) or ""
         patch_prompt = PATCH_SECTION.format(
             section_name=section,
