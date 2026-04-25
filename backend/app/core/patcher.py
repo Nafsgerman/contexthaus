@@ -10,6 +10,32 @@ def _find_section_header(markdown: str, section_name: str) -> Optional[str]:
     return None
 
 
+def deduplicate_sections(markdown: str) -> str:
+    """Remove earlier duplicate ## sections, keeping the last occurrence of each."""
+    section_pattern = r"(## .+?\n.*?)(?=\n## |\Z)"
+    matches = list(re.finditer(section_pattern, markdown, re.DOTALL))
+    if not matches:
+        return markdown
+
+    # Build map of lowercase name -> last match index
+    seen: dict[str, int] = {}
+    for i, m in enumerate(matches):
+        header = re.match(r"## (.+)", m.group(0))
+        if header:
+            seen[header.group(1).strip().lower()] = i
+
+    # Collect preamble (text before the first section)
+    preamble = markdown[: matches[0].start()]
+
+    kept_parts = []
+    for i, m in enumerate(matches):
+        header = re.match(r"## (.+)", m.group(0))
+        if header and seen.get(header.group(1).strip().lower()) == i:
+            kept_parts.append(m.group(0).rstrip())
+
+    return preamble + "\n\n".join(kept_parts) + "\n"
+
+
 def get_section(markdown: str, section_name: str) -> Optional[str]:
     canonical = _find_section_header(markdown, section_name) or section_name
     pattern = rf"## {re.escape(canonical)}\n(.*?)(?=\n## |\Z)"
@@ -23,9 +49,8 @@ def patch_section(markdown: str, section_name: str, new_content: str) -> str:
     replacement = rf"\g<1>{new_content}\n"
     result = re.sub(pattern, replacement, markdown, flags=re.DOTALL)
     if result == markdown:
-        # Section doesn't exist yet — append it
         result = markdown.rstrip() + f"\n\n## {section_name}\n{new_content}\n"
-    return result
+    return deduplicate_sections(result)
 
 
 def diff_sections(old_md: str, new_md: str) -> list[dict]:
